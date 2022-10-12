@@ -1,16 +1,24 @@
 #!/bin/bash
+BUILD_WARMUP=0
+BUILD_RUNS=1
 
+BENCH_WARMUP=0
+BENCH_RUNS=1
+
+SCRIPT_DIR=$(dirname "$0")
 # Make tmpfs directory and cd into it
-TMPDIR=`mktemp -d`
-sudo mount -t tmpfs -o size=64g none $TMPDIR
+TMPDIR=`mktemp -d -p /data`
+#sudo mount -t tmpfs -o size=64g none $TMPDIR
 cd $TMPDIR
+echo $TMPDIR
 
 # Checkout LLVM repo at a known commit (trunk as of 11 Oct 2022)
 #git clone https://github.com/llvm/llvm-project
-git clone /data/llvm-project
-pushd llvm-project
-git checkout 41f5bbe18b5b162fe798b933deecc55f7cc29b92
-popd
+#git clone /data/llvm-project
+#pushd llvm-project
+#git checkout 41f5bbe18b5b162fe798b933deecc55f7cc29b92
+#popd
+ln -sf /data/llvm-project llvm-project
 
 # Build different versions of Clang: baseline, +LTO, +PGO, +BOLT
 COMMON_CMAKE_ARGS="-GNinja -DCMAKE_BUILD_TYPE=Release -S llvm-project/llvm -DLLVM_ENABLE_LLD=ON"
@@ -28,21 +36,22 @@ BOLT_ARGS="-C llvm-project/clang/cmake/caches/BOLT.cmake -DCLANG_BOOTSTRAP_PASST
 for cfg in BASELINE LTO PGO LTO_PGO
 do
     echo $cfg
-    hyperfine --warmup 1 --runs 3 --export-json ${cfg}_build.json \
-        -L cfg "${cfg}" -L args "${!${cfg}_ARGS}" \
-        --prepare "rm -rf {cfg} && cmake -B {cfg} {args}" \
-        "cmake --build {cfg} --target stage2"
+    args=${cfg}_ARGS
+    hyperfine --warmup $BUILD_WARMUP --runs $BUILD_RUNS \
+        --export-json ${cfg}_build.json --show-output \
+        --prepare "rm -rf $cfg && cmake -B $cfg ${!args}" \
+        "cmake --build $cfg --target stage2"
 done
-
-exit
 
 for cfg in BASELINE LTO PGO LTO_PGO
 do
     bcfg=BOLT_${cfg}
     echo ${bcfg}
-    hyperfine --warmup 1 --runs 3 --export-json ${bcfg}_build.json \
-        --prepare "rm -rf ${bcfg} && cmake -B ${bcfg} ${!${cfg}_ARGS} $BOLT_ARGS" \
-        "cmake --build ${bcfg} --target stage2 && cmake --build ${bcfg} --target clang++-bolt"
+    args=${cfg}_ARGS
+    hyperfine --warmup $BUILD_WARMUP --runs $BUILD_RUNS \
+        --export-json ${bcfg}_build.json --show-output \
+        --prepare "rm -rf $bcfg && cmake -B $bcfg ${!args} $BOLT_ARGS" \
+        "cmake --build $bcfg --target stage2 && cmake --build $bcfg --target clang++-bolt"
 done
 
 # Benchmark these versions of Clang using building Clang as a workload
@@ -59,16 +68,18 @@ ATOM_CPUS="16-19"
 SYS_CPUS="$ATOM_CPUS" \
     WORKLOAD_CPUS="$CORE_CPUS_SMT0" \
     WORKLOAD_OFFLINE="$CORE_CPUS_SMT1" \
-    ./cpuset.sh prepare
+    $SCRIPT_DIR/cpuset.sh prepare
 
 for cfg in BASELINE LTO PGO LTO_PGO
 do
     echo $cfg
-    sudo systemd-run --slice=workload.slice --same-dir --wait --collect --service-type=exec --pty --uid=$USER \
-    hyperfine --warmup 3 --runs 10 --export-json ${cfg}_run_core.json \
+    sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
+        --service-type=exec --pty --uid=$USER \
+    hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
+        --export-json ${cfg}_run_glc.json --show-output \
         --prepare "rm -rf ${cfg}_run && cmake -B ${cfg}_run $COMMON_CMAKE_ARGS \
-        -DCMAKE_C_COMPILER=$(pwd)/${cfg}/bin/clang \
-        -DCMAKE_CXX_COMPILER=$(pwd)/${cfg}/bin/clang++" \
+        -DCMAKE_C_COMPILER=$TMPDIR/$cfg/bin/clang \
+        -DCMAKE_CXX_COMPILER=$TMPDIR/$cfg/bin/clang++" \
         "cmake --build ${cfg}_run --target clang"
 done
 
@@ -76,33 +87,37 @@ for cfg in BASELINE LTO PGO LTO_PGO
 do
     bcfg=BOLT_${cfg}
     echo $bcfg
-    sudo systemd-run --slice=workload.slice --same-dir --wait --collect --service-type=exec --pty --uid=$USER \
-    hyperfine --warmup 3 --runs 10 --export-json ${bcfg}_run_core.json \
+    sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
+        --service-type=exec --pty --uid=$USER \
+    hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
+        --export-json ${bcfg}_run_glc.json --show-output \
         --prepare "rm -rf ${bcfg}_run && cmake -B ${bcfg}_run $COMMON_CMAKE_ARGS \
-        -DCMAKE_C_COMPILER=$(pwd)/${bcfg}/bin/clang-bolt \
-        -DCMAKE_CXX_COMPILER=$(pwd)/${bcfg}/bin/clang++-bolt" \
+        -DCMAKE_C_COMPILER=$TMPDIR/$bcfg/bin/clang-bolt \
+        -DCMAKE_CXX_COMPILER=$TMPDIR/$bcfg/bin/clang++-bolt" \
         "cmake --build ${bcfg}_run --target clang"
 done
 
 SYS_CPUS="$ATOM_CPUS" \
     WORKLOAD_CPUS="$CORE_CPUS_SMT0" \
     WORKLOAD_OFFLINE="$CORE_CPUS_SMT1" \
-    ./cpuset.sh undo
+    $SCRIPT_DIR/cpuset.sh undo
 
 # Pin system slices to Core, workload slice to Atom, don't disable anything
 SYS_CPUS="$ATOM_CPUS" \
     WORKLOAD_CPUS="$CORE_CPUS" \
     WORKLOAD_OFFLINE="" \
-    ./cpuset.sh prepare
+    $SCRIPT_DIR/cpuset.sh prepare
 
 for cfg in BASELINE LTO PGO LTO_PGO
 do
     echo $cfg
-    sudo systemd-run --slice=workload.slice --same-dir --wait --collect --service-type=exec --pty --uid=$USER \
-    hyperfine --warmup 3 --runs 10 --export-json ${cfg}_run_atom.json \
+    sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
+        --service-type=exec --pty --uid=$USER \
+    hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
+        --export-json ${cfg}_run_grt.json --show-output \
         --prepare "rm -rf ${cfg}_run && cmake -B ${cfg}_run $COMMON_CMAKE_ARGS \
-        -DCMAKE_C_COMPILER=$(pwd)/${cfg}/bin/clang \
-        -DCMAKE_CXX_COMPILER=$(pwd)/${cfg}/bin/clang++" \
+        -DCMAKE_C_COMPILER=$TMPDIR/${cfg}/bin/clang \
+        -DCMAKE_CXX_COMPILER=$TMPDIR/${cfg}/bin/clang++" \
         "cmake --build ${cfg}_run --target clang"
 done
 
@@ -110,15 +125,17 @@ for cfg in BASELINE LTO PGO LTO_PGO
 do
     bcfg=BOLT_${cfg}
     echo $bcfg
-    sudo systemd-run --slice=workload.slice --same-dir --wait --collect --service-type=exec --pty --uid=$USER \
-    hyperfine --warmup 3 --runs 10 --export-json ${bcfg}_run_atom.json \
+    sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
+        --service-type=exec --pty --uid=$USER \
+    hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
+        --export-json ${bcfg}_run_grt.json --show-output \
         --prepare "rm -rf ${bcfg}_run && cmake -B ${bcfg}_run $COMMON_CMAKE_ARGS \
-        -DCMAKE_C_COMPILER=$(pwd)/${bcfg}/bin/clang-bolt \
-        -DCMAKE_CXX_COMPILER=$(pwd)/${bcfg}/bin/clang++-bolt" \
+        -DCMAKE_C_COMPILER=$TMPDIR/${bcfg}/bin/clang-bolt \
+        -DCMAKE_CXX_COMPILER=$TMPDIR/${bcfg}/bin/clang++-bolt" \
         "cmake --build ${bcfg}_run --target clang"
 done
 
 SYS_CPUS="$ATOM_CPUS" \
     WORKLOAD_CPUS="$CORE_CPUS" \
     WORKLOAD_OFFLINE="" \
-    ./cpuset.sh undo
+    $SCRIPT_DIR/cpuset.sh undo
