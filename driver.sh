@@ -21,7 +21,7 @@ echo $TMPDIR
 ln -sf /data/llvm-project llvm-project
 
 # Build different versions of Clang: baseline, +LTO, +PGO, +BOLT
-COMMON_CMAKE_ARGS="-GNinja -DCMAKE_BUILD_TYPE=Release -S llvm-project/llvm -DLLVM_ENABLE_LLD=ON"
+COMMON_CMAKE_ARGS="-GNinja -DCMAKE_BUILD_TYPE=Release -S llvm-project/llvm -DLLVM_ENABLE_LLD=ON -DLLVM_ENABLE_PROJECTS=clang"
 # Baseline: two-stage Clang build
 BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On"
 # ThinLTO: Two-stage + LTO Clang build
@@ -30,28 +30,27 @@ LTO_ARGS="$BASELINE_ARGS -DBOOTSTRAP_LLVM_ENABLE_LTO=Thin"
 PGO_ARGS="$BASELINE_ARGS -C llvm-project/clang/cmake/caches/PGO.cmake"
 # LTO+PGO: Two-stage + LTO + PGO
 LTO_PGO_ARGS="$PGO_ARGS -DPGO_INSTRUMENT_LTO=Thin"
-# Baseline+BOLT
-BOLT_ARGS="-C llvm-project/clang/cmake/caches/BOLT.cmake -DCLANG_BOOTSTRAP_PASSTHROUGH=CMAKE_EXE_LINKER_FLAGS"
 
-for cfg in BASELINE LTO PGO LTO_PGO
-do
-    echo $cfg
-    args=${cfg}_ARGS
-    hyperfine --warmup $BUILD_WARMUP --runs $BUILD_RUNS \
-        --export-json ${cfg}_build.json --show-output \
-        --prepare "rm -rf $cfg && cmake -B $cfg ${!args}" \
-        "cmake --build $cfg --target stage2"
-done
+BOLT_CMAKE="llvm-project/clang/cmake/caches/BOLT.cmake"
+BOLT_PASSTHRU_ARGS="-DCLANG_BOOTSTRAP_CMAKE_ARGS=\"-C $BOLT_CMAKE\""
+BOLT_PGO_CFG="-DPGO_BUILD_CONFIGURATION=$BOLT_CMAKE"
 
-for cfg in BASELINE LTO PGO LTO_PGO
+BOLT_BASELINE_ARGS="$BASELINE_ARGS $BOLT_PASSTHRU_ARGS"
+BOLT_LTO_ARGS="$LTO_ARGS $BOLT_PASSTHRU_ARGS"
+BOLT_PGO_ARGS="$PGO_ARGS $BOLT_PGO_CFG"
+BOLT_LTO_PGO_ARGS="$LTO_PGO_ARGS $BOLT_PGO_CFG"
+
+for b in "" BOLT_
 do
-    bcfg=BOLT_${cfg}
-    echo ${bcfg}
-    args=${cfg}_ARGS
-    hyperfine --warmup $BUILD_WARMUP --runs $BUILD_RUNS \
-        --export-json ${bcfg}_build.json --show-output \
-        --prepare "rm -rf $bcfg && cmake -B $bcfg ${!args} $BOLT_ARGS" \
-        "cmake --build $bcfg --target stage2 && cmake --build $bcfg --target clang++-bolt"
+    for cfg in BASELINE LTO PGO LTO_PGO
+    do
+        echo $b$cfg
+        args=${b}${cfg}_ARGS
+        hyperfine --warmup $BUILD_WARMUP --runs $BUILD_RUNS --show-output \
+            --export-json ${cfg}_build.json \
+            --prepare "rm -rf $cfg && cmake -B $cfg ${!args}" \
+            "ninja -C $cfg stage2"
+    done
 done
 
 # Benchmark these versions of Clang using building Clang as a workload
@@ -80,11 +79,8 @@ do
         --prepare "rm -rf ${cfg}_run && cmake -B ${cfg}_run $COMMON_CMAKE_ARGS \
         -DCMAKE_C_COMPILER=$TMPDIR/$cfg/bin/clang \
         -DCMAKE_CXX_COMPILER=$TMPDIR/$cfg/bin/clang++" \
-        "cmake --build ${cfg}_run --target clang"
-done
+        "ninja -C ${cfg}_run clang"
 
-for cfg in BASELINE LTO PGO LTO_PGO
-do
     bcfg=BOLT_${cfg}
     echo $bcfg
     sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
@@ -94,7 +90,7 @@ do
         --prepare "rm -rf ${bcfg}_run && cmake -B ${bcfg}_run $COMMON_CMAKE_ARGS \
         -DCMAKE_C_COMPILER=$TMPDIR/$bcfg/bin/clang-bolt \
         -DCMAKE_CXX_COMPILER=$TMPDIR/$bcfg/bin/clang++-bolt" \
-        "cmake --build ${bcfg}_run --target clang"
+        "ninja -C ${bcfg}_run clang"
 done
 
 SYS_CPUS="$ATOM_CPUS" \
@@ -118,11 +114,8 @@ do
         --prepare "rm -rf ${cfg}_run && cmake -B ${cfg}_run $COMMON_CMAKE_ARGS \
         -DCMAKE_C_COMPILER=$TMPDIR/${cfg}/bin/clang \
         -DCMAKE_CXX_COMPILER=$TMPDIR/${cfg}/bin/clang++" \
-        "cmake --build ${cfg}_run --target clang"
-done
+        "ninja -C ${cfg}_run clang"
 
-for cfg in BASELINE LTO PGO LTO_PGO
-do
     bcfg=BOLT_${cfg}
     echo $bcfg
     sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
@@ -132,7 +125,7 @@ do
         --prepare "rm -rf ${bcfg}_run && cmake -B ${bcfg}_run $COMMON_CMAKE_ARGS \
         -DCMAKE_C_COMPILER=$TMPDIR/${bcfg}/bin/clang-bolt \
         -DCMAKE_CXX_COMPILER=$TMPDIR/${bcfg}/bin/clang++-bolt" \
-        "cmake --build ${bcfg}_run --target clang"
+        "ninja -C ${bcfg}_run clang"
 done
 
 SYS_CPUS="$ATOM_CPUS" \
