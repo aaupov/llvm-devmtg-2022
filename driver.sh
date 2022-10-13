@@ -21,13 +21,14 @@ echo $TMPDIR
 ln -sf /data/llvm-project llvm-project
 
 # Build different versions of Clang: baseline, +LTO, +PGO, +BOLT
-COMMON_CMAKE_ARGS="-GNinja -DCMAKE_BUILD_TYPE=Release -S llvm-project/llvm -DLLVM_ENABLE_LLD=ON -DLLVM_ENABLE_PROJECTS=clang"
+COMMON_CMAKE_ARGS='-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release \
+    -DBOOTSTRAP_LLVM_ENABLE_LLD=ON -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_CCACHE_BUILD=ON'
 # Baseline: two-stage Clang build
 BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On"
 # ThinLTO: Two-stage + LTO Clang build
 LTO_ARGS="$BASELINE_ARGS -DBOOTSTRAP_LLVM_ENABLE_LTO=Thin"
 # Instrumentation PGO: Two-stage + PGO build
-PGO_ARGS="$BASELINE_ARGS -C llvm-project/clang/cmake/caches/PGO.cmake"
+PGO_ARGS="$BASELINE_ARGS -C llvm-project/clang/cmake/caches/PGO.cmake -DCLANG_BOOTSTRAP_TARGETS=stage2-install"
 # LTO+PGO: Two-stage + LTO + PGO
 LTO_PGO_ARGS="$PGO_ARGS -DPGO_INSTRUMENT_LTO=Thin"
 
@@ -40,16 +41,19 @@ BOLT_LTO_ARGS="$LTO_ARGS $BOLT_PASSTHRU_ARGS"
 BOLT_PGO_ARGS="$PGO_ARGS $BOLT_PGO_CFG"
 BOLT_LTO_PGO_ARGS="$LTO_PGO_ARGS $BOLT_PGO_CFG"
 
+# non-BOLT, then BOLT build
 for b in "" BOLT_
 do
     for cfg in BASELINE LTO PGO LTO_PGO
     do
-        echo $b$cfg
-        args=${b}${cfg}_ARGS
+        bcfg=$b$cfg
+        echo $bcfg
+        args=${bcfg}_ARGS
+            #--prepare "rm -rf $bcfg && cmake -B $bcfg ${!args}" \
         hyperfine --warmup $BUILD_WARMUP --runs $BUILD_RUNS --show-output \
-            --export-json ${cfg}_build.json \
-            --prepare "rm -rf $cfg && cmake -B $cfg ${!args}" \
-            "ninja -C $cfg stage2"
+            --export-json ${bcfg}_build.json \
+            --prepare "cmake -B $bcfg ${!args} -DCMAKE_INSTALL_PREFIX=$bcfg/install" \
+            "ninja -C $bcfg stage2-install" | tee $bcfg.log
     done
 done
 
