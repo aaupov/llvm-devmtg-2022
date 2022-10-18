@@ -1,13 +1,10 @@
 #!/bin/bash
-BUILD_WARMUP=0
-BUILD_RUNS=1
-
 BENCH_WARMUP=0
 BENCH_RUNS=1
 
 SCRIPT_DIR=$(dirname "$0")
 # Make tmpfs directory and cd into it
-TMPDIR=`mktemp -d -p /data`
+TMPDIR=`mktemp -d`
 #sudo mount -t tmpfs -o size=64g none $TMPDIR
 cd $TMPDIR
 echo $TMPDIR
@@ -21,8 +18,9 @@ echo $TMPDIR
 ln -sf /data/llvm-project llvm-project
 
 # Build different versions of Clang: baseline, +LTO, +PGO, +BOLT
-COMMON_CMAKE_ARGS='-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release \
-    -DBOOTSTRAP_LLVM_ENABLE_LLD=ON -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_CCACHE_BUILD=ON'
+COMMON_CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release \
+    -DBOOTSTRAP_LLVM_ENABLE_LLD=ON -DLLVM_ENABLE_PROJECTS=bolt;clang;lld \
+    -DLLVM_CCACHE_BUILD=ON -DBOOTSTRAP_LLVM_CCACHE_BUILD=ON"
 # Baseline: two-stage Clang build
 BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On"
 # ThinLTO: Two-stage + LTO Clang build
@@ -30,16 +28,17 @@ LTO_ARGS="$BASELINE_ARGS -DBOOTSTRAP_LLVM_ENABLE_LTO=Thin"
 # Instrumentation PGO: Two-stage + PGO build
 PGO_ARGS="$BASELINE_ARGS -C llvm-project/clang/cmake/caches/PGO.cmake -DCLANG_BOOTSTRAP_TARGETS=stage2-install"
 # LTO+PGO: Two-stage + LTO + PGO
-LTO_PGO_ARGS="$PGO_ARGS -DPGO_INSTRUMENT_LTO=Thin"
+LTO_PGO_ARGS="-DPGO_INSTRUMENT_LTO=Thin $PGO_ARGS"
 
 BOLT_CMAKE="llvm-project/clang/cmake/caches/BOLT.cmake"
-BOLT_PASSTHRU_ARGS="-DCLANG_BOOTSTRAP_CMAKE_ARGS=\"-C $BOLT_CMAKE\""
-BOLT_PGO_CFG="-DPGO_BUILD_CONFIGURATION=$BOLT_CMAKE"
+BOLT_PGO_CMAKE="llvm-project/clang/cmake/caches/BOLT-PGO.cmake"
+BOLT_PASSTHRU_ARGS="-DCLANG_BOOTSTRAP_CMAKE_ARGS=-C../../../../$BOLT_CMAKE -DCLANG_BOOTSTRAP_TARGETS=clang++-bolt"
+BOLT_PGO_CFG="-C $BOLT_PGO_CMAKE"
 
 BOLT_BASELINE_ARGS="$BASELINE_ARGS $BOLT_PASSTHRU_ARGS"
 BOLT_LTO_ARGS="$LTO_ARGS $BOLT_PASSTHRU_ARGS"
-BOLT_PGO_ARGS="$PGO_ARGS $BOLT_PGO_CFG"
-BOLT_LTO_PGO_ARGS="$LTO_PGO_ARGS $BOLT_PGO_CFG"
+BOLT_PGO_ARGS="$BASELINE_ARGS $BOLT_PGO_CFG"
+BOLT_LTO_PGO_ARGS="-DPGO_INSTRUMENT_LTO=Thin $BOLT_PGO_ARGS"
 
 # non-BOLT, then BOLT build
 for b in "" BOLT_
@@ -49,11 +48,12 @@ do
         bcfg=$b$cfg
         echo $bcfg
         args=${bcfg}_ARGS
-            #--prepare "rm -rf $bcfg && cmake -B $bcfg ${!args}" \
-        hyperfine --warmup $BUILD_WARMUP --runs $BUILD_RUNS --show-output \
-            --export-json ${bcfg}_build.json \
-            --prepare "cmake -B $bcfg ${!args} -DCMAKE_INSTALL_PREFIX=$bcfg/install" \
-            "ninja -C $bcfg stage2-install" | tee $bcfg.log
+	cmake -B $bcfg ${!args} -DCMAKE_INSTALL_PREFIX=$bcfg/install |& tee $bcfg.log
+	target="stage2-install"
+	if [[ -n $b ]]; then
+		target="stage2-clang++-bolt"
+	fi
+	ninja -C $bcfg $target |& tee -a $bcfg.log
     done
 done
 
