@@ -62,7 +62,7 @@ case $1 in
         done
 
         # Take CPUs online
-        for i in $WORKLOAD_OFFLINE
+        for i in $ALL_CPUS
         do
             echo 1 > /sys/devices/system/cpu/cpu$i/online
         done
