@@ -19,8 +19,10 @@ ln -sf /data/llvm-project llvm-project
 
 # Build different versions of Clang: baseline, +LTO, +PGO, +BOLT
 COMMON_CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release \
-    -DBOOTSTRAP_LLVM_ENABLE_LLD=ON -DLLVM_ENABLE_PROJECTS=bolt;clang;lld \
-    -DLLVM_CCACHE_BUILD=ON -DBOOTSTRAP_LLVM_CCACHE_BUILD=ON"
+    -DLLVM_ENABLE_LLD=ON -DBOOTSTRAP_LLVM_ENABLE_LLD=ON \
+    -DBOOTSTRAP_BOOTSTRAP_LLVM_ENABLE_LLD=ON \
+    -DLLVM_ENABLE_PROJECTS=bolt;clang;lld -DLLVM_CCACHE_BUILD=ON \
+    -DBOOTSTRAP_LLVM_CCACHE_BUILD=ON"
 # Baseline: two-stage Clang build
 BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On"
 # ThinLTO: Two-stage + LTO Clang build
@@ -57,8 +59,39 @@ do
     done
 done
 
+exit
+fi
+
 # Benchmark these versions of Clang using building Clang as a workload
 # (with regular configuration specified by $COMMON_CMAKE_ARGS)
+
+bench () {
+    cfg=$1
+    hwname=$2
+    echo $hwname
+    echo $cfg
+    sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
+        --service-type=exec --pty --uid=$USER \
+    hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
+        --export-json ${cfg}_run_${hwname}.json --show-output \
+        --prepare "rm -rf ${cfg}_run && cmake -B ${cfg}_run $COMMON_CMAKE_ARGS \
+        -DCMAKE_C_COMPILER=$TMPDIR/$cfg/install/bin/clang \
+        -DCMAKE_CXX_COMPILER=$TMPDIR/$cfg/install/bin/clang++" \
+        "ninja -C ${cfg}_run clang"
+
+    bcfg=BOLT_${cfg}
+    echo $bcfg
+    clang_bolt=`find $TMPDIR/$bcfg -name clang-bolt`
+    clangxx_bolt=`find $TMPDIR/$bcfg -name clang++-bolt`
+    sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
+        --service-type=exec --pty --uid=$USER \
+    hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
+        --export-json ${bcfg}_run_${hwname}.json --show-output \
+        --prepare "rm -rf ${bcfg}_run && cmake -B ${bcfg}_run $COMMON_CMAKE_ARGS \
+        -DCMAKE_C_COMPILER=$clang_bolt \
+        -DCMAKE_CXX_COMPILER=$clangxx_bolt" \
+        "ninja -C ${bcfg}_run clang"
+}
 
 # Intel ADL i7-12700K
 export ALL_CPUS="0-19"
@@ -75,26 +108,7 @@ SYS_CPUS="$ATOM_CPUS" \
 
 for cfg in BASELINE LTO PGO LTO_PGO
 do
-    echo $cfg
-    sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
-        --service-type=exec --pty --uid=$USER \
-    hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
-        --export-json ${cfg}_run_glc.json --show-output \
-        --prepare "rm -rf ${cfg}_run && cmake -B ${cfg}_run $COMMON_CMAKE_ARGS \
-        -DCMAKE_C_COMPILER=$TMPDIR/$cfg/bin/clang \
-        -DCMAKE_CXX_COMPILER=$TMPDIR/$cfg/bin/clang++" \
-        "ninja -C ${cfg}_run clang"
-
-    bcfg=BOLT_${cfg}
-    echo $bcfg
-    sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
-        --service-type=exec --pty --uid=$USER \
-    hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
-        --export-json ${bcfg}_run_glc.json --show-output \
-        --prepare "rm -rf ${bcfg}_run && cmake -B ${bcfg}_run $COMMON_CMAKE_ARGS \
-        -DCMAKE_C_COMPILER=$TMPDIR/$bcfg/bin/clang-bolt \
-        -DCMAKE_CXX_COMPILER=$TMPDIR/$bcfg/bin/clang++-bolt" \
-        "ninja -C ${bcfg}_run clang"
+    bench $cfg glc
 done
 
 SYS_CPUS="$ATOM_CPUS" \
@@ -110,26 +124,7 @@ SYS_CPUS="$ATOM_CPUS" \
 
 for cfg in BASELINE LTO PGO LTO_PGO
 do
-    echo $cfg
-    sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
-        --service-type=exec --pty --uid=$USER \
-    hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
-        --export-json ${cfg}_run_grt.json --show-output \
-        --prepare "rm -rf ${cfg}_run && cmake -B ${cfg}_run $COMMON_CMAKE_ARGS \
-        -DCMAKE_C_COMPILER=$TMPDIR/${cfg}/bin/clang \
-        -DCMAKE_CXX_COMPILER=$TMPDIR/${cfg}/bin/clang++" \
-        "ninja -C ${cfg}_run clang"
-
-    bcfg=BOLT_${cfg}
-    echo $bcfg
-    sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
-        --service-type=exec --pty --uid=$USER \
-    hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
-        --export-json ${bcfg}_run_grt.json --show-output \
-        --prepare "rm -rf ${bcfg}_run && cmake -B ${bcfg}_run $COMMON_CMAKE_ARGS \
-        -DCMAKE_C_COMPILER=$TMPDIR/${bcfg}/bin/clang-bolt \
-        -DCMAKE_CXX_COMPILER=$TMPDIR/${bcfg}/bin/clang++-bolt" \
-        "ninja -C ${bcfg}_run clang"
+    bench $cfg grt
 done
 
 SYS_CPUS="$ATOM_CPUS" \
