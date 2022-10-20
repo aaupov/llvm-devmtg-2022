@@ -5,31 +5,31 @@ USE_PERF=1
 
 SCRIPT_DIR=$(dirname `realpath "$0"`)
 
-prepare () {
-    # Make tmpfs directory and cd into it
-    TMPDIR=`mktemp -d`
-    cd $TMPDIR
-    echo $TMPDIR
+# Make tmpfs directory and cd into it
+TMPDIR=`mktemp -d`
+cd $TMPDIR
+echo $TMPDIR
 
-    # Checkout LLVM repo at a known commit
-    git clone --no-checkout --filter=blob:none https://github.com/llvm/llvm-project
-    git -C llvm-project sparse-checkout set --cone
-    # https://reviews.llvm.org/D136023
-    git -C llvm-project checkout 076240fa062415b6470b79413559aff2bf5bf208
-    git -C llvm-project sparse-checkout set bolt llvm clang lld
-}
+# Checkout LLVM repo at a known commit
+git clone --no-checkout --filter=blob:none https://github.com/llvm/llvm-project
+pushd llvm-project
+git sparse-checkout set --cone
+# https://reviews.llvm.org/D136023
+git checkout 076240fa062415b6470b79413559aff2bf5bf208
+git sparse-checkout set bolt llvm clang lld
+popd
 
 # Cmake configuration for benchmarking
-CMAKE_ARGS='-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release \
-    -DLLVM_ENABLE_PROJECTS=clang -DLLVM_ENABLE_LLD=ON \
-    -DLLVM_TARGETS_TO_BUILD=Native'
+CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release
+    -DLLVM_ENABLE_PROJECTS=clang -DLLVM_ENABLE_LLD=ON
+    -DLLVM_TARGETS_TO_BUILD=Native"
 # Build different versions of Clang: baseline, +LTO, +PGO, +BOLT
-COMMON_CMAKE_ARGS='-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release \
-    "-DLLVM_ENABLE_PROJECTS=bolt;clang;lld" -DLLVM_TARGETS_TO_BUILD=Native \
-    -DLLVM_ENABLE_LLD=ON -DBOOTSTRAP_LLVM_ENABLE_LLD=ON \
-    -DBOOTSTRAP_BOOTSTRAP_LLVM_ENABLE_LLD=ON \
-    -DLLVM_CCACHE_BUILD=ON \
-    -DBOOTSTRAP_LLVM_CCACHE_BUILD=ON'
+COMMON_CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release
+    -DLLVM_ENABLE_PROJECTS=bolt;clang;lld -DLLVM_TARGETS_TO_BUILD=Native
+    -DLLVM_ENABLE_LLD=ON -DBOOTSTRAP_LLVM_ENABLE_LLD=ON
+    -DBOOTSTRAP_BOOTSTRAP_LLVM_ENABLE_LLD=ON
+    -DLLVM_CCACHE_BUILD=ON
+    -DBOOTSTRAP_LLVM_CCACHE_BUILD=ON"
 # Baseline: two-stage Clang build
 BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On"
 # ThinLTO: Two-stage + LTO Clang build
@@ -130,7 +130,7 @@ bench () {
 }
 
 run () {
-    $SCRIPT_DIR/cpuset.sh prepare
+    sudo $SCRIPT_DIR/cpuset.sh prepare
 
     for cfg in BASELINE LTO PGO LTO_PGO
     do
@@ -138,11 +138,10 @@ run () {
         bench $cfg $1
     done
 
-    $SCRIPT_DIR/cpuset.sh undo
+    sudo $SCRIPT_DIR/cpuset.sh undo
 }
 
 # Main entry point
-prepare
 build
 for i in "$@"
 do
