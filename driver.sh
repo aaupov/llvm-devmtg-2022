@@ -19,13 +19,16 @@ prepare () {
     git -C llvm-project sparse-checkout set bolt llvm clang lld
 }
 
-# Build different versions of Clang: baseline, +LTO, +PGO, +BOLT
+# Cmake configuration for benchmarking
 CMAKE_ARGS='-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release \
-    "-DLLVM_ENABLE_PROJECTS=clang;lld" -DLLVM_ENABLE_LLD=ON'
+    -DLLVM_ENABLE_PROJECTS=clang -DLLVM_ENABLE_LLD=ON \
+    -DLLVM_TARGETS_TO_BUILD=Native'
+# Build different versions of Clang: baseline, +LTO, +PGO, +BOLT
 COMMON_CMAKE_ARGS='-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release \
+    "-DLLVM_ENABLE_PROJECTS=bolt;clang;lld" -DLLVM_TARGETS_TO_BUILD=Native \
     -DLLVM_ENABLE_LLD=ON -DBOOTSTRAP_LLVM_ENABLE_LLD=ON \
     -DBOOTSTRAP_BOOTSTRAP_LLVM_ENABLE_LLD=ON \
-    "-DLLVM_ENABLE_PROJECTS=bolt;clang;lld" -DLLVM_CCACHE_BUILD=ON \
+    -DLLVM_CCACHE_BUILD=ON \
     -DBOOTSTRAP_LLVM_CCACHE_BUILD=ON'
 # Baseline: two-stage Clang build
 BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On"
