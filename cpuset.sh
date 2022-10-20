@@ -48,9 +48,9 @@ case $1 in
         echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo
 
         # Set DVFS governor to performance
-        for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+        for i in $WORKLOAD_CPUS
         do
-            echo performance > /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+            echo performance > /sys/devices/system/cpu/cpu$i/cpufreq/scaling_governor
         done
 
         ;;
@@ -62,7 +62,7 @@ case $1 in
         done
 
         # Take CPUs online
-        for i in $ALL_CPUS
+        for i in $WORKLOAD_OFFLINE
         do
             echo 1 > /sys/devices/system/cpu/cpu$i/online
         done
@@ -74,9 +74,9 @@ case $1 in
         echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo
 
         # Set DVFS governor to powersave
-        for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+        for i in $WORKLOAD_CPUS
         do
-            echo powersave > /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+            echo powersave > /sys/devices/system/cpu/cpu$i/cpufreq/scaling_governor
         done
 
         ;;
