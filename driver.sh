@@ -4,6 +4,7 @@ BENCH_RUNS=3
 USE_PERF=1
 
 SCRIPT_DIR=$(dirname `realpath "$0"`)
+LLVM_SRC=${LLVM_SOURCE:-https://github.com/llvm/llvm-project}
 
 # Make tmpfs directory and cd into it
 TMPDIR=`mktemp -d`
@@ -11,12 +12,10 @@ cd $TMPDIR
 echo $TMPDIR
 
 # Checkout LLVM repo at a known commit
-git clone --no-checkout --filter=blob:none https://github.com/llvm/llvm-project
+git clone "$LLVM_SRC"
 pushd llvm-project
-git sparse-checkout set --cone
 # https://reviews.llvm.org/D136023
 git checkout 076240fa062415b6470b79413559aff2bf5bf208
-git sparse-checkout set bolt llvm clang lld
 popd
 
 # Cmake configuration for benchmarking
@@ -31,11 +30,11 @@ COMMON_CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release
     -DLLVM_CCACHE_BUILD=ON
     -DBOOTSTRAP_LLVM_CCACHE_BUILD=ON"
 # Baseline: two-stage Clang build
-BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On"
+BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On -DCLANG_BOOTSTRAP_TARGETS=install-clang"
 # ThinLTO: Two-stage + LTO Clang build
 LTO_ARGS="$BASELINE_ARGS -DBOOTSTRAP_LLVM_ENABLE_LTO=Thin"
 # Instrumentation PGO: Two-stage + PGO build
-PGO_ARGS="$BASELINE_ARGS -C llvm-project/clang/cmake/caches/PGO.cmake -DCLANG_BOOTSTRAP_TARGETS=stage2-install-clang"
+PGO_ARGS="$BASELINE_ARGS -C llvm-project/clang/cmake/caches/PGO.cmake"
 # LTO+PGO: Two-stage + LTO + PGO
 LTO_PGO_ARGS="-DPGO_INSTRUMENT_LTO=Thin $PGO_ARGS"
 
