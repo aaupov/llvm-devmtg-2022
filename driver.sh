@@ -19,8 +19,7 @@ git checkout 076240fa062415b6470b79413559aff2bf5bf208
 popd
 
 # Cmake configuration for benchmarking
-CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release
-    -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=Native"
+CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=Native"
 # Build different versions of Clang: baseline, +LTO, +PGO, +BOLT
 COMMON_CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release
     -DLLVM_ENABLE_PROJECTS=bolt;clang;lld -DLLVM_TARGETS_TO_BUILD=Native
@@ -77,7 +76,6 @@ bench () {
 
     RUNDIR=`mktemp -d`
     sudo mount -t tmpfs -o size=10g none $RUNDIR
-    pushd $RUNDIR
 
     if [ $USE_PERF -eq 1 ]
     then
@@ -85,19 +83,19 @@ bench () {
            --service-type=exec --pty --uid=$USER \
            perf stat -r$BENCH_RUNS -o ${cfg}_run_${hwname}.txt \
            -e instructions,cycles,L1-icache-misses,iTLB-misses -- \
-            bash -c "rm -rf ${cfg}_run && cmake -B ${cfg}_run $CMAKE_ARGS \
+            bash -c "rm -rf $RUNDIR/${cfg}_run && cmake -B $RUNDIR/${cfg}_run $CMAKE_ARGS \
             -DCMAKE_C_COMPILER=$TMPDIR/$cfg/install/bin/clang \
             -DCMAKE_CXX_COMPILER=$TMPDIR/$cfg/install/bin/clang++ && \
-            ninja -C ${cfg}_run clang"
+            ninja -C $RUNDIR/${cfg}_run clang"
     else
         sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
             --service-type=exec --pty --uid=$USER \
         hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
             --export-json ${cfg}_run_${hwname}.json --show-output \
-            --prepare "rm -rf ${cfg}_run && cmake -B ${cfg}_run $CMAKE_ARGS \
+            --prepare "rm -rf $RUNDIR/${cfg}_run && cmake -B $RUNDIR/${cfg}_run $CMAKE_ARGS \
             -DCMAKE_C_COMPILER=$TMPDIR/$cfg/install/bin/clang \
             -DCMAKE_CXX_COMPILER=$TMPDIR/$cfg/install/bin/clang++" \
-            "ninja -C ${cfg}_run clang"
+            "ninja -C $RUNDIR/${cfg}_run clang"
     fi
 
     bcfg=BOLT_${cfg}
@@ -110,21 +108,20 @@ bench () {
            --service-type=exec --pty --uid=$USER \
            perf stat -r$BENCH_RUNS -o ${bcfg}_run_${hwname}.txt \
            -e instructions,cycles,L1-icache-misses,iTLB-misses -- \
-            bash -c "rm -rf ${bcfg}_run && cmake -B ${bcfg}_run $CMAKE_ARGS \
+            bash -c "rm -rf $RUNDIR/${bcfg}_run && cmake -B $RUNDIR/${bcfg}_run $CMAKE_ARGS \
             -DCMAKE_C_COMPILER=$clang_bolt \
             -DCMAKE_CXX_COMPILER=$clangxx_bolt && \
-            ninja -C ${bcfg}_run clang"
+            ninja -C $RUNDIR/${bcfg}_run clang"
     else
         sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
             --service-type=exec --pty --uid=$USER \
         hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
             --export-json ${bcfg}_run_${hwname}.json --show-output \
-            --prepare "rm -rf ${bcfg}_run && cmake -B ${bcfg}_run $CMAKE_ARGS \
+            --prepare "rm -rf $RUNDIR/${bcfg}_run && cmake -B $RUNDIR/${bcfg}_run $CMAKE_ARGS \
             -DCMAKE_C_COMPILER=$clang_bolt \
             -DCMAKE_CXX_COMPILER=$clangxx_bolt" \
-            "ninja -C ${bcfg}_run clang"
+            "ninja -C $RUNDIR/${bcfg}_run clang"
     fi
-    popd
     sudo umount $RUNDIR
 }
 
@@ -149,7 +146,7 @@ do
             # Intel BDW E5-2680v4
             export ALL_CPUS="0-55"
             SYS_CPUS="0-13,28-41" \
-                WORKLOAD_CPUS="14-27,42-55" \
+                WORKLOAD_CPUS=$(seq 14 27) \
                 WORKLOAD_OFFLINE=$(seq 42 55) \
                 run BDW
             ;;
@@ -171,7 +168,7 @@ do
         GRT)
             # Intel ADL i7-12700K
             export ALL_CPUS="0-19"
-            CORE_CPUS="0-15"
+            CORE_CPUS=$(seq 0 15)
             CORE_CPUS_SMT0=`seq 0 2 14 | paste -sd "," -` #"0,2,4,6,8,10,12,14"
             CORE_CPUS_SMT1=`seq 1 2 15 | paste -sd "," -` #"1,3,5,7,9,11,13,15"
             ATOM_CPUS="16-19"
