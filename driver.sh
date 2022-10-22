@@ -27,12 +27,12 @@ COMMON_CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release
     -DLLVM_CCACHE_BUILD=ON -DBOOTSTRAP_LLVM_CCACHE_BUILD=ON"
 # Baseline: two-stage Clang build
 BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On
-  -DCLANG_BOOTSTRAP_TARGETS=install-clang"
+  -DCLANG_BOOTSTRAP_TARGETS=install-clang;install-clang-headers"
 # ThinLTO: Two-stage + LTO Clang build
 LTO_ARGS="$BASELINE_ARGS -DBOOTSTRAP_LLVM_ENABLE_LTO=Thin"
 # Instrumentation PGO: Two-stage + PGO build
-PGO_ARGS="$BASELINE_ARGS -DBOOTSTRAP_CLANG_BOOTSTRAP_TARGETS=install-clang
-  -DCLANG_BOOTSTRAP_TARGETS=stage2-install-clang
+PGO_ARGS="$BASELINE_ARGS -DBOOTSTRAP_CLANG_BOOTSTRAP_TARGETS=install-clang;install-clang-headers
+  -DCLANG_BOOTSTRAP_TARGETS=stage2-install-clang;stage2-install-clang-headers
   -C llvm-project/clang/cmake/caches/PGO.cmake"
 # LTO+PGO: Two-stage + LTO + PGO
 LTO_PGO_ARGS="-DPGO_INSTRUMENT_LTO=Thin $PGO_ARGS"
@@ -57,7 +57,7 @@ build () {
             echo $bcfg
             args=${bcfg}_ARGS
             cmake -B $bcfg ${!args} -DCMAKE_INSTALL_PREFIX=$bcfg/install |& tee $bcfg.log
-            target="stage2-install-clang"
+            target="stage2-install-clang stage2-install-clang-headers"
             if [[ -n $b ]]; then
                 target="stage2-clang++-bolt"
             fi
