@@ -3,6 +3,11 @@
 # This script implements benchmarking tips from https://llvm.org/docs/Benchmarking.html
 SYS_SLICES="machine.slice system.slice user.slice"
 WORKLOAD="workload.slice"
+ALL_CPUS=$2
+SYS_CPUS=$3
+WORKLOAD_CPUS=$4
+shift 4
+WORKLOAD_OFFLINE=$@
 
 echo "SYS_CPUS: $SYS_CPUS"
 echo "WORKLOAD_CPUS: $WORKLOAD_CPUS"
@@ -48,9 +53,9 @@ case $1 in
         echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo
 
         # Set DVFS governor to performance
-        for i in $WORKLOAD_CPUS
+        for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
         do
-            echo performance > /sys/devices/system/cpu/cpu$i/cpufreq/scaling_governor
+            echo performance > $i
         done
 
         ;;
@@ -74,9 +79,9 @@ case $1 in
         echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo
 
         # Set DVFS governor to powersave
-        for i in $WORKLOAD_CPUS
+        for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
         do
-            echo powersave > /sys/devices/system/cpu/cpu$i/cpufreq/scaling_governor
+            echo powersave > $i
         done
 
         ;;
