@@ -48,21 +48,13 @@ BOLT_PGO_ARGS="$COMMON_CMAKE_ARGS -C $BOLT_PGO_CMAKE"
 BOLT_LTO_PGO_ARGS="-DBOOTSTRAP_LLVM_ENABLE_LLD=ON -DPGO_INSTRUMENT_LTO=Thin $BOLT_PGO_ARGS"
 
 build () {
-    # non-BOLT, then BOLT build
-    for b in "" BOLT_
+    for cfg in BASELINE LTO PGO LTO_PGO
     do
-        for cfg in BASELINE LTO PGO LTO_PGO
-        do
-            bcfg=$b$cfg
-            echo $bcfg
-            args=${bcfg}_ARGS
-            cmake -B $bcfg ${!args} |& tee $bcfg.log
-            target="stage2-clang"
-            if [[ -n $b ]]; then
-                target="stage2-clang++-bolt"
-            fi
-            ninja -C $bcfg $target |& tee -a $bcfg.log
-        done
+        bcfg=BOLT_$cfg
+        echo $bcfg
+        args=${bcfg}_ARGS
+        cmake -B $bcfg ${!args} |& tee $bcfg.log
+        ninja -C $bcfg stage2-clang++-bolt |& tee -a $bcfg.log
     done
 }
 
@@ -73,12 +65,16 @@ bench () {
     cfg=$1
     hwname=$2
     echo $cfg
+    bcfg=BOLT_${cfg}
 
     RUNDIR=`mktemp -d`
     sudo mount -t tmpfs -o size=10g none $RUNDIR
 
-    clang=`find $TMPDIR/$cfg -wholename "*/tools/clang/stage2-bins/bin/clang"`
-    clangxx=${clang}++
+    clang_bolt=`find $TMPDIR/$bcfg -name clang-bolt`
+    clang_dir=`dirname $clang_bolt`
+    clang=$clang_dir/clang
+    clangxx=$clang_dir/clang++
+    clangxx_bolt=$clangxx-bolt
 
     if [ $USE_PERF -eq 1 ]
     then
@@ -99,10 +95,7 @@ bench () {
             ninja -C $RUNDIR/${cfg}_run clang
     fi
 
-    bcfg=BOLT_${cfg}
     echo $bcfg
-    clang_bolt=`find $TMPDIR/$bcfg -name clang-bolt`
-    clangxx_bolt=`find $TMPDIR/$bcfg -name clang++-bolt`
     if [ $USE_PERF -eq 1 ]
     then
         sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
