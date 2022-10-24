@@ -3,6 +3,7 @@
 # This script implements benchmarking tips from https://llvm.org/docs/Benchmarking.html
 SYS_SLICES="machine.slice system.slice user.slice"
 WORKLOAD="workload.slice"
+CMD=$1
 ALL_CPUS=$2
 SYS_CPUS=$3
 WORKLOAD_CPUS=$4
@@ -13,17 +14,10 @@ echo "SYS_CPUS: $SYS_CPUS"
 echo "WORKLOAD_CPUS: $WORKLOAD_CPUS"
 echo "WORKLOAD_OFFLINE: $WORKLOAD_OFFLINE"
 
-# Check that one argument is provided
-if [ $# -lt 1 ]
-then
-    echo "Usage: $0 [list|prepare|undo]"
-    exit
-fi
-
-case $1 in
+case $CMD in
     'list')
         # Print current CPU allocation per slice
-        for i in $SYS_SLICES #$WORKLOAD
+        for i in $SYS_SLICES $WORKLOAD
         do
             printf "$i: "
             cat /sys/fs/cgroup/$i/cpuset.cpus
@@ -84,5 +78,9 @@ case $1 in
             echo powersave > $i
         done
 
+        ;;
+
+    *)
+        echo "Usage: $0 [list|prepare|undo]"
         ;;
 esac
