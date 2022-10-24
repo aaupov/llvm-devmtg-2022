@@ -1,6 +1,5 @@
 #!/bin/bash
-BENCH_WARMUP=1
-BENCH_RUNS=1
+BENCH_RUNS=5
 USE_PERF=1
 
 SCRIPT_DIR=$(dirname `realpath "$0"`)
@@ -24,7 +23,7 @@ CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABL
 COMMON_CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release
     -DLLVM_ENABLE_PROJECTS=bolt;clang;lld -DLLVM_TARGETS_TO_BUILD=Native
     -DBOOTSTRAP_LLVM_ENABLE_LLD=ON -DBOOTSTRAP_BOOTSTRAP_LLVM_ENABLE_LLD=ON
-    -DLLVM_CCACHE_BUILD=ON -DBOOTSTRAP_LLVM_CCACHE_BUILD=ON"
+    -DLLVM_CCACHE_BUILD=ON"
 # Baseline: two-stage Clang build
 BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On
   -DCLANG_BOOTSTRAP_TARGETS=clang"
@@ -53,8 +52,8 @@ build () {
         bcfg=BOLT_$cfg
         echo $bcfg
         args=${bcfg}_ARGS
-        cmake -B $bcfg ${!args} |& tee $bcfg.log
-        ninja -C $bcfg stage2-clang++-bolt |& tee -a $bcfg.log
+        cmake -B $bcfg ${!args} |& tee ${bcfg}_build.log
+        ninja -C $bcfg stage2-clang++-bolt |& tee -a ${bcfg}_build.log
     done
 }
 
@@ -64,71 +63,47 @@ build () {
 bench () {
     cfg=$1
     hwname=$2
+    RUNDIR=$3
     echo $cfg
-    bcfg=BOLT_${cfg}
+
+    clang_dir=`dirname $(find $TMPDIR/BOLT_$cfg -name clang-bolt)`
+    CC=$clang_dir/clang
+    CXX=$clang_dir/clang++
+
+    log=${cfg}_${hwname}_run
+
+    for b in "" BOLT_
+    do
+        if [[ -n $b ]]; then
+            CC=$CC-bolt
+            CXX=$CXX-bolt
+        fi
+        rm -rf $RUNDIR/CMakeCache.txt $RUNDIR/CMakeFiles
+        cmake -B $RUNDIR $CMAKE_ARGS -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX
+
+        sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
+            --service-type=exec --pty --uid=$USER \
+            perf stat -r$BENCH_RUNS -o $b$log.txt \
+            -e instructions,cycles,L1-icache-misses,iTLB-misses \
+            --pre "ninja -C $RUNDIR clean" -- \
+            ninja -C $RUNDIR clang
+    done
+}
+
+run () {
+    sudo bash -x $SCRIPT_DIR/cpuset.sh prepare $ALL_CPUS $SYS_CPUS $WORKLOAD_CPUS $WORKLOAD_OFFLINE
 
     RUNDIR=`mktemp -d`
     sudo mount -t tmpfs -o size=10g none $RUNDIR
 
-    clang_bolt=`find $TMPDIR/$bcfg -name clang-bolt`
-    clang_dir=`dirname $clang_bolt`
-    clang=$clang_dir/clang
-    clangxx=$clang_dir/clang++
-    clangxx_bolt=$clangxx-bolt
-
-    if [ $USE_PERF -eq 1 ]
-    then
-        sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
-           --service-type=exec --pty --uid=$USER \
-           perf stat -r$BENCH_RUNS -o ${cfg}_run_${hwname}.txt \
-           -e instructions,cycles,L1-icache-misses,iTLB-misses \
-           --pre "rm -rf $RUNDIR/${cfg}_run && cmake -B $RUNDIR/${cfg}_run $CMAKE_ARGS \
-            -DCMAKE_C_COMPILER=$clang -DCMAKE_CXX_COMPILER=$clangxx" -- \
-            ninja -C $RUNDIR/${cfg}_run clang
-    else
-        sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
-            --service-type=exec --pty --uid=$USER \
-        hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
-            --export-json ${cfg}_run_${hwname}.json --show-output \
-            --prepare "rm -rf $RUNDIR/${cfg}_run && cmake -B $RUNDIR/${cfg}_run $CMAKE_ARGS \
-            -DCMAKE_C_COMPILER=$clang -DCMAKE_CXX_COMPILER=$clangxx" -- \
-            ninja -C $RUNDIR/${cfg}_run clang
-    fi
-
-    echo $bcfg
-    if [ $USE_PERF -eq 1 ]
-    then
-        sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
-           --service-type=exec --pty --uid=$USER \
-           perf stat -r$BENCH_RUNS -o ${bcfg}_run_${hwname}.txt \
-           -e instructions,cycles,L1-icache-misses,iTLB-misses \
-           --pre "rm -rf $RUNDIR/${bcfg}_run && cmake -B $RUNDIR/${bcfg}_run $CMAKE_ARGS \
-            -DCMAKE_C_COMPILER=$clang_bolt \
-            -DCMAKE_CXX_COMPILER=$clangxx_bolt" -- \
-            ninja -C $RUNDIR/${bcfg}_run clang
-    else
-        sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
-            --service-type=exec --pty --uid=$USER \
-        hyperfine --warmup $BENCH_WARMUP --runs $BENCH_RUNS \
-            --export-json ${bcfg}_run_${hwname}.json --show-output \
-            --prepare "rm -rf $RUNDIR/${bcfg}_run && cmake -B $RUNDIR/${bcfg}_run $CMAKE_ARGS \
-            -DCMAKE_C_COMPILER=$clang_bolt \
-            -DCMAKE_CXX_COMPILER=$clangxx_bolt" \
-            ninja -C $RUNDIR/${bcfg}_run clang
-    fi
-    sudo umount $RUNDIR
-}
-
-run () {
-    sudo $SCRIPT_DIR/cpuset.sh prepare $ALL_CPUS $SYS_CPUS $WORKLOAD_CPUS $WORKLOAD_OFFLINE
-
     for cfg in BASELINE LTO PGO LTO_PGO
     do
         echo $1
-        bench $cfg $1
+        bench $cfg $1 $RUNDIR
     done
 
-    sudo $SCRIPT_DIR/cpuset.sh undo $ALL_CPUS $SYS_CPUS $WORKLOAD_CPUS $WORKLOAD_OFFLINE
+    sudo bash -x $SCRIPT_DIR/cpuset.sh undo $ALL_CPUS $SYS_CPUS $WORKLOAD_CPUS $WORKLOAD_OFFLINE
+    sudo umount $RUNDIR
 }
 
 # Main entry point
