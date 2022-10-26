@@ -1,0 +1,12 @@
+# started on Mon Oct 24 19:50:44 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.Xzmvyzpqou clang' (5 runs):
+
+25,759,414,654,756      instructions              #    0.84  insn per cycle           ( +-  0.00% )  (50.00%)
+30,580,986,544,595      cycles                                                        ( +-  0.01% )  (50.00%)
+   662,087,927,208      L1-icache-misses                                              ( +-  0.01% )  (50.00%)
+    14,957,654,421      iTLB-misses                                                   ( +-  0.02% )  (50.00%)
+
+           792.455 +- 0.638 seconds time elapsed  ( +-  0.08% )
+
