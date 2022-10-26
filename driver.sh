@@ -146,6 +146,15 @@ do
                 run GRT
             ;;
 
+	ZEN1)
+	    # AMD EPYC 7571
+	    ALL_CPUS="0-15" \
+	        SYS_CPUS="0,8" \
+		WORKLOAD_CPUS="1-7" \
+		WORKLOAD_OFFLINE=$(seq 9 15) \
+		run ZEN1
+	    ;;
+
         *)
             echo "Unknown target $i"
     esac

@@ -1,0 +1,12 @@
+# started on Wed Oct 26 07:22:41 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.sGj2sXFivq clang' (5 runs):
+
+    26193473955832      instructions              #    0.73  insn per cycle           ( +-  0.00% )
+    36094358375778      cycles                                                        ( +-  0.02% )
+     1075620523155      L1-icache-misses                                              ( +-  0.00% )
+       41348916679      iTLB-misses                                                   ( +-  0.06% )
+
+          1695.014 +- 0.792 seconds time elapsed  ( +-  0.05% )
+
