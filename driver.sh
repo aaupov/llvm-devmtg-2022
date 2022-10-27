@@ -116,33 +116,24 @@ do
             ALL_CPUS="0-55" \
                 SYS_CPUS="0-13,28-41" \
                 WORKLOAD_CPUS="14-27" \
-                WORKLOAD_OFFLINE=$(seq 42 55) \
+                WORKLOAD_OFFLINE="42-55" \
                 run BDW
             ;;
 
+        # Intel ADL i7-12700K
         GLC)
-            # Intel ADL i7-12700K
-            CORE_CPUS="$(seq 0 15)"
-            CORE_CPUS_SMT0=`seq 0 2 14 | paste -sd "," -` #"0,2,4,6,8,10,12,14"
-            CORE_CPUS_SMT1=$(seq 1 2 15) # | paste -sd "," -` #"1,3,5,7,9,11,13,15"
-            ATOM_CPUS="16-19"
-            # Pin system slices to Atom CPUs, workload slice to Core, disable SMT
             ALL_CPUS="0-19" \
-                SYS_CPUS="$ATOM_CPUS" \
-                WORKLOAD_CPUS="$CORE_CPUS_SMT0" \
-                WORKLOAD_OFFLINE="$CORE_CPUS_SMT1" \
+                SYS_CPUS="0" \
+                WORKLOAD_CPUS="2,4,6,8,10,12,14" \
+                WORKLOAD_OFFLINE="1,3,5,7,9,11,13,15-19" \
                 run GLC
             ;;
 
         GRT)
-            # Intel ADL i7-12700K
-            CORE_CPUS="0-15"
-            ATOM_CPUS="16-19"
-            # Pin system slices to Core, workload slice to Atom, don't disable anything
             ALL_CPUS="0-19" \
-                SYS_CPUS="$ATOM_CPUS" \
-                WORKLOAD_CPUS="$CORE_CPUS" \
-                WORKLOAD_OFFLINE="" \
+                SYS_CPUS="16" \
+                WORKLOAD_CPUS="17-19" \
+                WORKLOAD_OFFLINE="1-15" \
                 run GRT
             ;;
 

@@ -34,23 +34,20 @@ case $CMD in
         # Assign CPUs to cpuset
         echo -e $WORKLOAD_CPUS > /sys/fs/cgroup/$WORKLOAD/cpuset.cpus
 
-        # Take CPUs offline
-        for i in $WORKLOAD_OFFLINE
+        # Set DVFS governor to performance
+        for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
         do
-            echo 0 > /sys/devices/system/cpu/cpu$i/online
+            echo performance > $i
         done
+
+        # Take CPUs offline
+        chcpu -d $WORKLOAD_OFFLINE
 
         # Disable ASLR
         echo 0 > /proc/sys/kernel/randomize_va_space
 
         # Disable Turbo
         echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo
-
-        # Set DVFS governor to performance
-        for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-        do
-            echo performance > $i
-        done
 
         ;;
     'undo')
@@ -61,10 +58,7 @@ case $CMD in
         done
 
         # Take CPUs online
-        for i in $WORKLOAD_OFFLINE
-        do
-            echo 1 > /sys/devices/system/cpu/cpu$i/online
-        done
+        chcpu -e $ALL_CPUS
 
         # Re-enable ASLR
         echo 1 > /proc/sys/kernel/randomize_va_space
