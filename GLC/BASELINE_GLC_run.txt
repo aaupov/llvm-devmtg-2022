@@ -1,0 +1,12 @@
+# started on Wed Oct 26 23:20:38 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.4ldq3gzRdd clang' (5 runs):
+
+27,863,605,021,465      cpu_core/instructions/                                        ( +-  0.00% )
+19,773,962,228,980      cpu_core/cycles/                                              ( +-  0.02% )
+ 1,360,514,138,048      cpu_core/L1-icache-misses/                                     ( +-  0.01% )
+     5,158,030,673      cpu_core/iTLB-misses/                                         ( +-  0.05% )
+
+           708.824 +- 0.168 seconds time elapsed  ( +-  0.02% )
+

@@ -1,0 +1,12 @@
+# started on Thu Oct 27 09:24:36 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.y73H76l8um clang' (5 runs):
+
+26,204,334,626,678      cpu_core/instructions/                                        ( +-  0.00% )
+19,263,079,067,104      cpu_core/cycles/                                              ( +-  0.04% )
+ 1,333,557,042,655      cpu_core/L1-icache-misses/                                     ( +-  0.01% )
+     6,561,475,630      cpu_core/iTLB-misses/                                         ( +-  0.04% )
+
+           690.752 +- 0.416 seconds time elapsed  ( +-  0.06% )
+
