@@ -1,0 +1,16 @@
+# started on Thu Oct 27 16:34:01 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.GjGV8grmZI clang' (5 runs):
+
+     <not counted>      cpu_core/instructions/                                        (0.00%)
+27,868,094,275,973      cpu_atom/instructions/                                        ( +-  0.00% )
+     <not counted>      cpu_core/cycles/                                              (0.00%)
+32,136,365,314,009      cpu_atom/cycles/                                              ( +-  0.01% )
+     <not counted>      cpu_core/L1-icache-misses/                                     (0.00%)
+ 1,508,154,922,814      cpu_atom/L1-icache-misses/                                     ( +-  0.00% )
+     <not counted>      cpu_core/iTLB-misses/                                         (0.00%)
+   177,048,921,527      cpu_atom/iTLB-misses/                                         ( +-  0.01% )
+
+          2990.435 +- 0.445 seconds time elapsed  ( +-  0.01% )
+
