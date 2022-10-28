@@ -83,6 +83,7 @@ bench () {
 
         sudo systemd-run --slice=workload.slice --same-dir --wait --collect \
             --service-type=exec --pty --uid=$USER \
+            taskset -c $WORKLOAD_CPUS \
             perf stat -r$BENCH_RUNS -o $b$log.txt \
             -e instructions,cycles,L1-icache-misses,iTLB-misses \
             --pre "ninja -C $RUNDIR clean" -- \
@@ -131,9 +132,9 @@ do
 
         GRT)
             ALL_CPUS="0-19" \
-                SYS_CPUS="16" \
-                WORKLOAD_CPUS="17-19" \
-                WORKLOAD_OFFLINE="1-15" \
+                SYS_CPUS="0-15" \
+                WORKLOAD_CPUS="16-19" \
+                WORKLOAD_OFFLINE="" \
                 run GRT
             ;;
 
