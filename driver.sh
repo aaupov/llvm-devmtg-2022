@@ -1,5 +1,5 @@
 #!/bin/bash
-BENCH_RUNS=5
+BENCH_RUNS=1
 USE_PERF=1
 
 SCRIPT_DIR=$(dirname `realpath "$0"`)
@@ -87,7 +87,7 @@ bench () {
             perf stat -r$BENCH_RUNS -o $b$log.txt \
             -e instructions,cycles,L1-icache-misses,iTLB-misses \
             --pre "ninja -C $RUNDIR clean" -- \
-            ninja -C $RUNDIR clang
+            ninja -C $RUNDIR not
     done
 }
 
@@ -97,7 +97,7 @@ run () {
     RUNDIR=`mktemp -d`
     sudo mount -t tmpfs -o size=10g none $RUNDIR
 
-    for cfg in BASELINE LTO PGO LTO_PGO
+    for cfg in BASELINE #LTO PGO LTO_PGO
     do
         echo $1
         bench $cfg $1 $RUNDIR
@@ -138,14 +138,21 @@ do
                 run GRT
             ;;
 
-	ZEN1)
-	    # AMD EPYC 7571
-	    ALL_CPUS="0-15" \
-	        SYS_CPUS="0,8" \
-		WORKLOAD_CPUS="1-7" \
-		WORKLOAD_OFFLINE=$(seq 9 15) \
-		run ZEN1
-	    ;;
+        ZEN1)
+            # AMD EPYC 7571
+            ALL_CPUS="0-15" \
+                SYS_CPUS="0,8" \
+                WORKLOAD_CPUS="1-7" \
+                WORKLOAD_OFFLINE=$(seq 9 15) \
+                run ZEN1
+            ;;
+
+        TGL)
+            ALL_CPUS="0-8" \
+                SYS_CPUS="0" \
+                WORKLOAD_CPUS="1-7" \
+                WORKLOAD_OFFLINE="" \
+                run TGL
 
 	SKL)
 	    # Intel Xeon 8124M
