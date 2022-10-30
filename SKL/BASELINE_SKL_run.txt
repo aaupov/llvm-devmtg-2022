@@ -1,0 +1,12 @@
+# started on Sun Oct 30 01:30:00 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.xdkJhi8NXv clang' (5 runs):
+
+    27788342003389      instructions              #    0.98  insn per cycle           ( +-  0.00% )
+    28285387994432      cycles                                                        ( +-  0.00% )
+     1775927534178      L1-icache-misses                                              ( +-  0.00% )
+        5204460737      iTLB-misses                                                   ( +-  0.03% )
+
+           513.194 +- 0.181 seconds time elapsed  ( +-  0.04% )
+

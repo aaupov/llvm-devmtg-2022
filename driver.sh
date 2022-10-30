@@ -147,6 +147,15 @@ do
 		run ZEN1
 	    ;;
 
+	SKL)
+	    # Intel Xeon 8124M
+	    ALL_CPUS="0-35" \
+		SYS_CPUS="0,18" \
+		WORKLOAD_CPUS="1-17" \
+		WORKLOAD_OFFLINE="19-35" \
+		run SKL
+	    ;;
+
         *)
             echo "Unknown target $i"
     esac
