@@ -165,6 +165,15 @@ do
 		run ICL
 	    ;;
 
+	ZEN2)
+	    # AMD EPYC 7R32
+	    ALL_CPUS="0-95" \
+		SYS_CPUS="0,48" \
+		WORKLOAD_CPUS="1-37" \
+		WORKLOAD_OFFLINE="49-95" \
+		run ZEN2
+	    ;;
+
         *)
             echo "Unknown target $i"
     esac

@@ -1,0 +1,12 @@
+# started on Tue Nov  1 03:06:05 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.wHDB1OQSwD clang' (5 runs):
+
+    27828166963872      instructions              #    1.35  insn per cycle           ( +-  0.00% )
+    20680227828559      cycles                                                        ( +-  0.01% )
+      123686676942      L1-icache-misses                                              ( +-  0.00% )
+        4934287450      iTLB-misses                                                   ( +-  0.00% )
+
+          193.5165 +- 0.0989 seconds time elapsed  ( +-  0.05% )
+
