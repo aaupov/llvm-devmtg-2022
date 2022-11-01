@@ -1,0 +1,12 @@
+# started on Tue Nov  1 05:01:39 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.R8qblqbAiM clang' (5 runs):
+
+    27864982096220      instructions              #    1.22  insn per cycle           ( +-  0.01% )
+    22809369154178      cycles                                                        ( +-  0.02% )
+       60075874848      L1-icache-misses                                              ( +-  0.01% )
+        5319021363      iTLB-misses                                                   ( +-  0.02% )
+
+          160.6573 +- 0.0785 seconds time elapsed  ( +-  0.05% )
+

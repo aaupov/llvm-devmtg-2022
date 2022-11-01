@@ -1,0 +1,12 @@
+# started on Tue Nov  1 06:00:59 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.ucutM0xHbQ clang' (5 runs):
+
+    28212928003723      instructions              #    1.26  insn per cycle           ( +-  0.00% )
+    22415887184608      cycles                                                        ( +-  0.01% )
+       57972178000      L1-icache-misses                                              ( +-  0.01% )
+        5800089059      iTLB-misses                                                   ( +-  0.01% )
+
+           157.427 +- 0.132 seconds time elapsed  ( +-  0.08% )
+

@@ -174,6 +174,15 @@ do
 		run ZEN2
 	    ;;
 
+	ZEN3)
+	    # EPYC 7R13
+	    ALL_CPUS="0-95" \
+		SYS_CPUS="0,48" \
+		WORKLOAD_CPUS="1-47" \
+		WORKLOAD_OFFLINE="49-95" \
+		run ZEN3
+	    ;;
+
         *)
             echo "Unknown target $i"
     esac
