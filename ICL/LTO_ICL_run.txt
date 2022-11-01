@@ -1,0 +1,12 @@
+# started on Tue Nov  1 00:27:29 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.tnaeMF45vt clang' (5 runs):
+
+    26126261631363      instructions              #    1.12  insn per cycle           ( +-  0.00% )
+    23253334156625      cycles                                                        ( +-  0.04% )
+     1590398738279      L1-icache-misses                                              ( +-  0.01% )
+        8174900215      iTLB-misses                                                   ( +-  0.03% )
+
+           231.736 +- 0.180 seconds time elapsed  ( +-  0.08% )
+

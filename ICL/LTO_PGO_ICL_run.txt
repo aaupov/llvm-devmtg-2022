@@ -1,0 +1,12 @@
+# started on Tue Nov  1 01:42:51 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.vFLk3HjlTf clang' (5 runs):
+
+    28223254302114      instructions              #    1.31  insn per cycle           ( +-  0.00% )
+    21485131706084      cycles                                                        ( +-  0.01% )
+     1080151099066      L1-icache-misses                                              ( +-  0.00% )
+        8071101709      iTLB-misses                                                   ( +-  0.05% )
+
+          215.5029 +- 0.0276 seconds time elapsed  ( +-  0.01% )
+

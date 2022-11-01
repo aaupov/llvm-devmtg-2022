@@ -156,6 +156,15 @@ do
 		run SKL
 	    ;;
 
+	ICL)
+	    # Intel Xeon 8375C
+	    ALL_CPUS="0-63" \
+		SYS_CPUS="0,32" \
+		WORKLOAD_CPUS="1-31" \
+		WORKLOAD_OFFLINE="33-63" \
+		run ICL
+	    ;;
+
         *)
             echo "Unknown target $i"
     esac
