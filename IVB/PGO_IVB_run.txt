@@ -1,0 +1,12 @@
+# started on Thu Nov  3 00:59:39 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.97iuAgLXLb clang' (3 runs):
+
+27 626 099 568 615      instructions:u            #    0,80  insn per cycle           ( +-  0,00% )
+34 538 367 142 295      cycles:u                                                      ( +-  0,09% )
+   847 042 439 826      L1-icache-misses:u                                            ( +-  0,03% )
+    30 006 050 122      iTLB-misses:u                                                 ( +-  0,03% )
+
+           2883,46 +- 3,20 seconds time elapsed  ( +-  0,11% )
+

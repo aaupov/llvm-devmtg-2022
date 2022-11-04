@@ -183,6 +183,15 @@ do
 		run ZEN3
 	    ;;
 
+	IVB)
+	    # Intel IVB i7-3770S
+	    ALL_CPUS="0-7" \
+	        SYS_CPUS="" \
+		WORKLOAD_CPUS="0-3" \
+		WORKLOAD_OFFLINE="4-7" \
+		run IVB
+	    ;;
+
         *)
             echo "Unknown target $i"
     esac

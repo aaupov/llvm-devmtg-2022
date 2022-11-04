@@ -1,0 +1,12 @@
+# started on Fri Nov  4 22:49:13 2022
+
+
+ Performance counter stats for 'ninja -C /tmp/tmp.51bnHlDsEK clang' (3 runs):
+
+25 824 951 117 119      instructions:u            #    0,62  insn per cycle           ( +-  0,00% )
+41 480 754 228 651      cycles:u                                                      ( +-  0,00% )
+ 1 220 630 223 018      L1-icache-misses:u                                            ( +-  0,01% )
+    46 948 710 985      iTLB-misses:u                                                 ( +-  0,01% )
+
+           3460,67 +- 3,52 seconds time elapsed  ( +-  0,10% )
+
