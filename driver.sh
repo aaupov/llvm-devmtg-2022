@@ -2,7 +2,7 @@
 BENCH_RUNS=5
 
 SCRIPT_DIR=$(dirname `realpath "$0"`)
-LLVM_SRC=${LLVM_SOURCE:-https://github.com/llvm/llvm-project}
+LLVM_SRC=${LLVM_SOURCE:-https://github.com/aaupov/llvm-project}
 
 # Make tmpfs directory and cd into it
 TMPDIR=`mktemp -d`
@@ -12,8 +12,8 @@ echo $TMPDIR
 # Checkout LLVM repo at a known commit
 git clone "$LLVM_SRC"
 pushd llvm-project
-# Trunk as of Oct 23, 2022
-git checkout e98501e27ed9ae9ceeaf80eac84d408c2ce4cd72
+# clang-bolt with perf profiling + nolbr fix + install-clang
+git checkout origin/nolbr
 popd
 
 # Cmake configuration for benchmarking
@@ -26,12 +26,12 @@ COMMON_CMAKE_ARGS="$BASE_ARGS -DLLVM_CCACHE_BUILD=ON
     -DBOOTSTRAP_BOOTSTRAP_LLVM_ENABLE_LLD=ON"
 # Baseline: two-stage Clang build
 BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On
-  -DCLANG_BOOTSTRAP_TARGETS=clang"
+  -DCLANG_BOOTSTRAP_TARGETS=install-clang;install-clang-resource-headers"
 # ThinLTO: Two-stage + LTO Clang build
 LTO_ARGS="$BASELINE_ARGS -DBOOTSTRAP_LLVM_ENABLE_LTO=Thin"
 # Instrumentation PGO: Two-stage + PGO build
-PGO_ARGS="$BASELINE_ARGS -DBOOTSTRAP_CLANG_BOOTSTRAP_TARGETS=clang
-  -DCLANG_BOOTSTRAP_TARGETS=stage2-clang
+PGO_ARGS="$BASELINE_ARGS -DBOOTSTRAP_CLANG_BOOTSTRAP_TARGETS=install-clang;install-clang-resource-headers
+  -DCLANG_BOOTSTRAP_TARGETS=stage2-install-clang;stage2-install-clang-resource-headers
   -C llvm-project/clang/cmake/caches/PGO.cmake"
 # LTO+PGO: Two-stage + LTO + PGO
 LTO_PGO_ARGS="-DPGO_INSTRUMENT_LTO=Thin $PGO_ARGS"
@@ -39,7 +39,7 @@ LTO_PGO_ARGS="-DPGO_INSTRUMENT_LTO=Thin $PGO_ARGS"
 BOLT_CMAKE="llvm-project/clang/cmake/caches/BOLT.cmake"
 BOLT_PGO_CMAKE="llvm-project/clang/cmake/caches/BOLT-PGO.cmake"
 BOLT_PASSTHRU_ARGS="-DCLANG_BOOTSTRAP_CMAKE_ARGS=-C../../../../$BOLT_CMAKE
-  -DCLANG_BOOTSTRAP_TARGETS=clang++-bolt"
+  -DCLANG_BOOTSTRAP_TARGETS=clang-bolt;install-distribution"
 
 BOLT_BASELINE_ARGS="$BASELINE_ARGS $BOLT_PASSTHRU_ARGS"
 BOLT_LTO_ARGS="$LTO_ARGS $BOLT_PASSTHRU_ARGS"
@@ -47,13 +47,24 @@ BOLT_PGO_ARGS="$COMMON_CMAKE_ARGS -C $BOLT_PGO_CMAKE"
 BOLT_LTO_PGO_ARGS="-DBOOTSTRAP_LLVM_ENABLE_LLD=ON -DPGO_INSTRUMENT_LTO=Thin $BOLT_PGO_ARGS"
 
 build () {
+    mkdir logs
     for cfg in BASELINE LTO PGO LTO_PGO
     do
         bcfg=BOLT_$cfg
         echo $bcfg
         args=${bcfg}_ARGS
-        cmake -B $bcfg ${!args} |& tee ${bcfg}_build.log
-        ninja -C $bcfg stage2-clang++-bolt |& tee -a ${bcfg}_build.log
+        cmake -B $bcfg ${!args} \
+            -DCMAKE_INSTALL_PREFIX=install-$bcfg \
+            |& tee logs/${bcfg}_cmake.log
+        # install baseline (non-BOLT) clang
+        ninja -C $bcfg stage2-install-distribution |& tee logs/${cfg}_install.log
+        # move it to a separate folder
+        mv install-$bcfg install-$cfg
+        # optimize clang
+        ninja -C $bcfg stage2-clang-bolt |& tee logs/${bcfg}_build.log
+        # install BOLT-optimized clang
+        ninja -C $bcfg stage2-install-distribution \
+            |& tee logs/${bcfg}_install.log
     done
 }
 
@@ -66,18 +77,12 @@ bench () {
     RUNDIR=$3
     echo $cfg
 
-    clang_dir=`dirname $(find $TMPDIR/BOLT_$cfg -name clang-bolt)`
-    CC=$clang_dir/clang
-    CXX=$clang_dir/clang++
-
     log=${cfg}_${hwname}_run
 
     for b in "" BOLT_
     do
-        if [[ -n $b ]]; then
-            CC=$CC-bolt
-            CXX=$CXX-bolt
-        fi
+        CC=$TMPDIR/install-$b$cfg/bin/clang
+        CXX=${CC}++
         rm -rf $RUNDIR/CMakeCache.txt $RUNDIR/CMakeFiles
         cmake -B $RUNDIR $CMAKE_ARGS -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX
 
