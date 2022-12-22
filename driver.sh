@@ -1,6 +1,5 @@
 #!/bin/bash
 BENCH_RUNS=5
-USE_PERF=1
 
 SCRIPT_DIR=$(dirname `realpath "$0"`)
 LLVM_SRC=${LLVM_SOURCE:-https://github.com/llvm/llvm-project}
@@ -18,12 +17,13 @@ git checkout e98501e27ed9ae9ceeaf80eac84d408c2ce4cd72
 popd
 
 # Cmake configuration for benchmarking
-CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=Native"
+BASE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=Native"
+CMAKE_ARGS="$BASE_ARGS -DLLVM_ENABLE_PROJECTS=clang"
 # Build different versions of Clang: baseline, +LTO, +PGO, +BOLT
-COMMON_CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release
-    -DLLVM_ENABLE_PROJECTS=bolt;clang;lld -DLLVM_TARGETS_TO_BUILD=Native
-    -DBOOTSTRAP_LLVM_ENABLE_LLD=ON -DBOOTSTRAP_BOOTSTRAP_LLVM_ENABLE_LLD=ON
-    -DLLVM_CCACHE_BUILD=ON"
+COMMON_CMAKE_ARGS="$BASE_ARGS -DLLVM_CCACHE_BUILD=ON
+    -DLLVM_ENABLE_PROJECTS=bolt;clang;lld
+    -DBOOTSTRAP_LLVM_ENABLE_LLD=ON
+    -DBOOTSTRAP_BOOTSTRAP_LLVM_ENABLE_LLD=ON"
 # Baseline: two-stage Clang build
 BASELINE_ARGS="$COMMON_CMAKE_ARGS -DCLANG_ENABLE_BOOTSTRAP=On
   -DCLANG_BOOTSTRAP_TARGETS=clang"
