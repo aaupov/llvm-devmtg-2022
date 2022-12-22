@@ -112,87 +112,87 @@ build
 for i in "$@"
 do
     case "$i" in
-        BDW)
-            # Intel BDW E5-2680v4
-            ALL_CPUS="0-55" \
-                SYS_CPUS="0-13,28-41" \
-                WORKLOAD_CPUS="14-27" \
-                WORKLOAD_OFFLINE="42-55" \
-                run BDW
-            ;;
+    BDW)
+        # Intel BDW E5-2680v4
+        ALL_CPUS="0-55" \
+        SYS_CPUS="0-13,28-41" \
+        WORKLOAD_CPUS="14-27" \
+        WORKLOAD_OFFLINE="42-55" \
+        run BDW
+        ;;
 
-        # Intel ADL i7-12700K
-        GLC)
-            ALL_CPUS="0-19" \
-                SYS_CPUS="0" \
-                WORKLOAD_CPUS="2,4,6,8,10,12,14" \
-                WORKLOAD_OFFLINE="1,3,5,7,9,11,13,15-19" \
-                run GLC
-            ;;
+    # Intel ADL i7-12700K
+    GLC)
+        ALL_CPUS="0-19" \
+        SYS_CPUS="0" \
+        WORKLOAD_CPUS="2,4,6,8,10,12,14" \
+        WORKLOAD_OFFLINE="1,3,5,7,9,11,13,15-19" \
+        run GLC
+        ;;
 
-        GRT)
-            ALL_CPUS="0-19" \
-                SYS_CPUS="0-15" \
-                WORKLOAD_CPUS="16-19" \
-                WORKLOAD_OFFLINE="" \
-                run GRT
-            ;;
+    GRT)
+        ALL_CPUS="0-19" \
+        SYS_CPUS="0-15" \
+        WORKLOAD_CPUS="16-19" \
+        WORKLOAD_OFFLINE="" \
+        run GRT
+        ;;
 
-	ZEN1)
-	    # AMD EPYC 7571
-	    ALL_CPUS="0-15" \
-	        SYS_CPUS="0,8" \
-		WORKLOAD_CPUS="1-7" \
-		WORKLOAD_OFFLINE=$(seq 9 15) \
-		run ZEN1
-	    ;;
+    ZEN1)
+        # AMD EPYC 7571
+        ALL_CPUS="0-15" \
+        SYS_CPUS="0,8" \
+        WORKLOAD_CPUS="1-7" \
+        WORKLOAD_OFFLINE=$(seq 9 15) \
+        run ZEN1
+        ;;
 
-	SKL)
-	    # Intel Xeon 8124M
-	    ALL_CPUS="0-35" \
-		SYS_CPUS="0,18" \
-		WORKLOAD_CPUS="1-17" \
-		WORKLOAD_OFFLINE="19-35" \
-		run SKL
-	    ;;
+    SKL)
+        # Intel Xeon 8124M
+        ALL_CPUS="0-35" \
+        SYS_CPUS="0,18" \
+        WORKLOAD_CPUS="1-17" \
+        WORKLOAD_OFFLINE="19-35" \
+        run SKL
+        ;;
 
-	ICL)
-	    # Intel Xeon 8375C
-	    ALL_CPUS="0-63" \
-		SYS_CPUS="0,32" \
-		WORKLOAD_CPUS="1-31" \
-		WORKLOAD_OFFLINE="33-63" \
-		run ICL
-	    ;;
+    ICL)
+        # Intel Xeon 8375C
+        ALL_CPUS="0-63" \
+        SYS_CPUS="0,32" \
+        WORKLOAD_CPUS="1-31" \
+        WORKLOAD_OFFLINE="33-63" \
+        run ICL
+        ;;
 
-	ZEN2)
-	    # AMD EPYC 7R32
-	    ALL_CPUS="0-95" \
-		SYS_CPUS="0,48" \
-		WORKLOAD_CPUS="1-37" \
-		WORKLOAD_OFFLINE="49-95" \
-		run ZEN2
-	    ;;
+    ZEN2)
+        # AMD EPYC 7R32
+        ALL_CPUS="0-95" \
+        SYS_CPUS="0,48" \
+        WORKLOAD_CPUS="1-37" \
+        WORKLOAD_OFFLINE="49-95" \
+        run ZEN2
+        ;;
 
-	ZEN3)
-	    # EPYC 7R13
-	    ALL_CPUS="0-95" \
-		SYS_CPUS="0,48" \
-		WORKLOAD_CPUS="1-47" \
-		WORKLOAD_OFFLINE="49-95" \
-		run ZEN3
-	    ;;
+    ZEN3)
+        # EPYC 7R13
+        ALL_CPUS="0-95" \
+        SYS_CPUS="0,48" \
+        WORKLOAD_CPUS="1-47" \
+        WORKLOAD_OFFLINE="49-95" \
+        run ZEN3
+        ;;
 
-	IVB)
-	    # Intel IVB i7-3770S
-	    ALL_CPUS="0-7" \
-	        SYS_CPUS="" \
-		WORKLOAD_CPUS="0-3" \
-		WORKLOAD_OFFLINE="4-7" \
-		run IVB
-	    ;;
+    IVB)
+        # Intel IVB i7-3770S
+        ALL_CPUS="0-7" \
+        SYS_CPUS="" \
+        WORKLOAD_CPUS="0-3" \
+        WORKLOAD_OFFLINE="4-7" \
+        run IVB
+        ;;
 
-        *)
-            echo "Unknown target $i"
+    *)
+        echo "Unknown target $i"
     esac
 done
