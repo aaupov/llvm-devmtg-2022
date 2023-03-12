@@ -90,7 +90,7 @@ bench () {
             --service-type=exec --pty --uid=$USER \
             taskset -c $WORKLOAD_CPUS \
             perf stat -r$BENCH_RUNS -o $b$log.txt \
-            -e instructions,cycles,L1-icache-misses,iTLB-misses \
+            -e inst_retired,cpu_cycles,stall_frontend,itlb_walk \
             --pre "ninja -C $RUNDIR clean" -- \
             ninja -C $RUNDIR clang
     done
@@ -195,6 +195,15 @@ do
         WORKLOAD_CPUS="0-3" \
         WORKLOAD_OFFLINE="4-7" \
         run IVB
+        ;;
+
+    ALTRA1)
+        # Ampere Altra
+	ALL_CPUS="0-79" \
+	SYS_CPUS="0" \
+	WORKLOAD_CPUS="1-79" \
+	WORKLOAD_OFFLINE="" \
+	run ALTRA1
         ;;
 
     *)
