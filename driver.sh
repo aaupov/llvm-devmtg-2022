@@ -156,6 +156,15 @@ do
 		run SKL
 	    ;;
 
+  SKX)
+      # Intel Xeon 6138
+      ALL_CPUS="0-79" \
+    SYS_CPUS="0,40" \
+    WORKLOAD_CPUS="1-39" \
+    WORKLOAD_OFFLINE="41-79" \
+    run SKX
+      ;;
+
 	ICL)
 	    # Intel Xeon 8375C
 	    ALL_CPUS="0-63" \
