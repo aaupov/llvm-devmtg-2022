@@ -15,12 +15,7 @@ TMPDIR=`mktemp -d`
 cd $TMPDIR
 echo $TMPDIR
 
-# Checkout LLVM repo at a known commit
-git clone "$LLVM_SRC"
-pushd llvm-project
-# Trunk as of Oct 23, 2022
-git checkout e98501e27ed9ae9ceeaf80eac84d408c2ce4cd72
-popd
+git clone --no-local "$LLVM_SRC"
 
 # Cmake configuration for benchmarking
 CMAKE_ARGS="-S llvm-project/llvm -GNinja -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=Native"
@@ -44,7 +39,7 @@ LTO_PGO_ARGS="-DPGO_INSTRUMENT_LTO=Thin $PGO_ARGS"
 BOLT_CMAKE="llvm-project/clang/cmake/caches/BOLT.cmake"
 BOLT_PGO_CMAKE="llvm-project/clang/cmake/caches/BOLT-PGO.cmake"
 BOLT_PASSTHRU_ARGS="-DCLANG_BOOTSTRAP_CMAKE_ARGS=-C../../../../$BOLT_CMAKE
-  -DCLANG_BOOTSTRAP_TARGETS=clang++-bolt"
+  -DCLANG_BOOTSTRAP_TARGETS=clang-bolt"
 
 BOLT_BASELINE_ARGS="$BASELINE_ARGS $BOLT_PASSTHRU_ARGS"
 BOLT_LTO_ARGS="$LTO_ARGS $BOLT_PASSTHRU_ARGS"
@@ -58,7 +53,7 @@ build () {
         echo $bcfg
         args=${bcfg}_ARGS
         cmake -B $bcfg ${!args} |& tee ${bcfg}_build.log
-        ninja -C $bcfg stage2-clang++-bolt |& tee -a ${bcfg}_build.log
+        ninja -C $bcfg stage2-clang-bolt |& tee -a ${bcfg}_build.log
     done
 }
 
@@ -71,17 +66,17 @@ bench () {
     RUNDIR=$3
     echo $cfg
 
-    clang_dir=`dirname $(find $TMPDIR/BOLT_$cfg -name clang-bolt)`
+    clang_dir=`dirname $(find $TMPDIR/BOLT_$cfg -name clang-prebolt)`
     CC=$clang_dir/clang
     CXX=$clang_dir/clang++
 
     log=${cfg}_${hwname}_run
 
-    for b in "" BOLT_
+    for b in BOLT_ ""
     do
-        if [[ -n $b ]]; then
-            CC=$CC-bolt
-            CXX=$CXX-bolt
+        if [[ -z $b ]]; then
+            CC=$CC-prebolt
+            CXX=$CXX-prebolt
         fi
         rm -rf $RUNDIR/CMakeCache.txt $RUNDIR/CMakeFiles
         cmake -B $RUNDIR $CMAKE_ARGS -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX
