@@ -1,6 +1,11 @@
 #!/bin/bash
-BENCH_RUNS=5
-USE_PERF=1
+if [ -n $BENCH_FAST ]; then
+  BENCH_RUNS=1
+  BENCH_TARGET=not
+else
+  BENCH_RUNS=5
+  BENCH_TARGET=clang
+fi
 
 SCRIPT_DIR=$(dirname `realpath "$0"`)
 LLVM_SRC=${LLVM_SOURCE:-https://github.com/llvm/llvm-project}
@@ -87,7 +92,7 @@ bench () {
             perf stat -r$BENCH_RUNS -o $b$log.txt \
             -e instructions,cycles,L1-icache-misses,iTLB-misses \
             --pre "ninja -C $RUNDIR clean" -- \
-            ninja -C $RUNDIR clang
+            ninja -C $RUNDIR $BENCH_TARGET
     done
 }
 
